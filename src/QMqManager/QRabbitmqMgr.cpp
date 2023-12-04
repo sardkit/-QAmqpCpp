@@ -1,5 +1,6 @@
 #include "QRabbitmqMgr.h"
 #include <QThread>
+#include <QMutexLocker>
 #include "amqpcpp.h"
 #include "QTcpConnectionHandler.h"
 
@@ -78,8 +79,8 @@ bool QRabbitmqMgr::PublishMsg(const QString &msg)
     }
 
     try {
-        //注意: 单通道无法支撑较大的数据流量，且通道出错后无法恢复，请考虑使用channel_pool（）
-        //AMQP::Channel channel(m_connection.get());
+        //注意: 单通道无法支撑较大的数据流量，多线程发送需要加锁
+        QMutexLocker channelLocker(&m_channelMutex);
         m_channel->publish(m_mqInfo.exchangeName.toStdString(), m_mqInfo.routingKey.toStdString(), msg.toStdString());
     }
     catch (const std::exception &e) {
@@ -224,6 +225,7 @@ bool QRabbitmqMgr::CreateMqChannel()
 bool QRabbitmqMgr::CloseMqChannel()
 {
     try {
+        QMutexLocker channelLocker(&m_channelMutex);
         if (m_channel && m_channel->usable()) {
             m_channel->close().onError(std::bind(&QRabbitmqMgr::ChannelCloseErrCb, this, std::placeholders::_1));
         }
@@ -341,6 +343,7 @@ bool QRabbitmqMgr::StartConsumeMsg()
 bool QRabbitmqMgr::PurgeMsgQueue()
 {
     try {
+        QMutexLocker channelLocker(&m_channelMutex);
         if (m_channel && m_channel->usable()) {
             m_channel->purgeQueue(m_mqInfo.queueName.toStdString());
         }

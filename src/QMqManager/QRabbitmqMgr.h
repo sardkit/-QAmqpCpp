@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QObject>
 #include <QTimer>
+#include <QMutex>
 #include "amqpcpp/exchangetype.h"
 #include "QTcpClient.h"
 
@@ -127,6 +128,7 @@ private:
     std::shared_ptr<AMQP::Connection > m_connection = nullptr;
     std::shared_ptr<AMQP::Channel> m_channel = nullptr;
 
+    QMutex m_channelMutex;
     std::shared_ptr<QTimer> m_heartbeatTimer = nullptr;
     int m_heartbeatInterval = 0;    //心跳时间，单位:秒
     int m_mqConnErrIndex = 0;

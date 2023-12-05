@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 	mq.port = 5672;
     mq.loginName = "admin";
     mq.loginPwd = "admin";
-    mq.exchangeName = "";   //hanglok.event.ex
+    mq.exchangeName = "test.event.ex";
     mq.queueName = "test.only.queue";
     mq.vhost = "Hanglok";
 

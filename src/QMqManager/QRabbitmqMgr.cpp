@@ -130,15 +130,23 @@ void QRabbitmqMgr::OnStatusChange(const bool isOk)
 {
     if (isOk) {
         m_mqConnErrIndex = 0;
-    }
-    else {
-        m_mqConnErrIndex++;
+        return;
     }
 
-    if(m_mqConnErrIndex > 4) {
-        m_mqConnErrIndex = 0;
+    m_mqConnErrIndex++;
+    qCritical() << "QRabbitmqMgr::OnStatusChange, error:" << m_errMessag
+                << ", count:" << m_mqConnErrIndex;
+
+    if(m_mqConnErrIndex < 3) {
+        //尝试重新连接
+        QThread::msleep(500);
+        this->CreateMqChannel();
+    } else {
         emit sigMqConnectError();
+        this->CloseMqChannel();
+        m_role = MqRoles::MqNone;
     }
+
 }
 
 void QRabbitmqMgr::OnPrintErrMsg(const QString &err)
@@ -266,7 +274,7 @@ bool QRabbitmqMgr::CreateMqExchange(const QString &exchangeName, const QString &
         }
 
         AMQP::ExchangeType type = MqExTypeMap[exchangeType];
-        m_channel->declareExchange(exchangeName.toStdString(), type).onError(std::bind(&QRabbitmqMgr::CreatMqExchangeErrCb, this, std::placeholders::_1));
+        m_channel->declareExchange(exchangeName.toStdString(), type, AMQP::durable).onError(std::bind(&QRabbitmqMgr::CreatMqExchangeErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e)
     {
@@ -366,8 +374,6 @@ void QRabbitmqMgr::ChannelErrCb(const char *msg)
 {
     m_errMessag = "当前通道发生错误: " + QString(msg);
     this->OnStatusChange(false);
-    QThread::sleep(1);
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::ChannelCloseErrCb(const char *msg)
@@ -379,40 +385,30 @@ void QRabbitmqMgr::CreatMqExchangeErrCb(const char *msg)
 {
     m_errMessag = "创建Exchange发生错误: " + QString(msg);
     this->OnStatusChange(false);
-    // 通道不再可用，创建通道
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::CreatMqQueueErrCb(const char *msg)
 {
     m_errMessag = "创建Queue发生错误: " + QString(msg);
     this->OnStatusChange(false);
-    // 通道不再可用，创建通道
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::BindQueueErrCb(const char *msg)
 {
     m_errMessag = "绑定Queue发生错误: " + QString(msg);
     this->OnStatusChange(false);
-    // 通道不再可用，创建通道
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::SetQosValueErrCb(const char *msg)
 {
     m_errMessag = "设置Qos值发生错误：" + QString(msg);
     this->OnStatusChange(false);
-    // 通道不再可用，创建通道
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::ConsumeErrorCb(const char *msg)
 {
     m_errMessag = "消费消息发生错误: " + QString(msg);
     this->OnStatusChange(false);
-    // 通道不再可用，创建通道
-    this->CreateMqChannel();
 }
 
 void QRabbitmqMgr::OnConsumeRecved(const AMQP::Message &message, uint64_t deliveryTag, bool redelivered)

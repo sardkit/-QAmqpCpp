@@ -40,7 +40,7 @@ bool QRabbitmqMgr::StartMqInstance()
 
         // 等待tcp连接建立成功
         if (!m_pTcpClient->NewConnect()) {
-            m_errMessag = "连接MqSever失败";
+            m_errMessag = "Connect MqSever Failed";
             return false;
         }
 
@@ -60,7 +60,7 @@ bool QRabbitmqMgr::StartMqInstance()
         }
     }
     catch (const std::exception &e) {
-        m_errMessag = "初始化mq实例失败: " + QString(e.what());
+        m_errMessag = "Init MqInstance Failed: " + QString(e.what());
         return false;
     }
 
@@ -70,11 +70,11 @@ bool QRabbitmqMgr::StartMqInstance()
 bool QRabbitmqMgr::PublishMsg(const QString &msg)
 {
     if(!(m_role & MqPublisher)) {
-        m_errMessag = "发布消息失败: MqRole is not Publisher";
+        m_errMessag = "Publish Messsage: MqRole is not Publisher";
         return false;
     }
     if(m_channel == nullptr) {
-        m_errMessag = "发布消息失败: channelPub is null";
+        m_errMessag = "Publish Messsage: channelPub is null";
         return false;
     }
 
@@ -84,7 +84,7 @@ bool QRabbitmqMgr::PublishMsg(const QString &msg)
         m_channel->publish(m_mqInfo.exchangeName.toStdString(), m_mqInfo.routingKey.toStdString(), msg.toStdString());
     }
     catch (const std::exception &e) {
-        m_errMessag = "发布消息失败: " + QString(e.what());
+        m_errMessag = "Publish Messsage: " + QString(e.what());
         return false;
     }
 
@@ -102,7 +102,7 @@ void QRabbitmqMgr::ReleaseMqInstance()
         }
     }
     catch (const std::exception &e) {
-        m_errMessag = "释放mq实例失败: " + QString(e.what());
+        m_errMessag = "Release MqInstance Failed: " + QString(e.what());
     }
 }
 
@@ -137,16 +137,9 @@ void QRabbitmqMgr::OnStatusChange(const bool isOk)
     qCritical() << "QRabbitmqMgr::OnStatusChange, error:" << m_errMessag
                 << ", count:" << m_mqConnErrIndex;
 
-    if(m_mqConnErrIndex < 3) {
-        //尝试重新连接
-        QThread::msleep(500);
-        this->CreateMqChannel();
-    } else {
-        emit sigMqConnectError();
-        this->CloseMqChannel();
-        m_role = MqRoles::MqNone;
-    }
-
+    emit sigMqConnectError();
+    this->CloseMqChannel();
+    m_role = MqRoles::MqNone;
 }
 
 void QRabbitmqMgr::OnPrintErrMsg(const QString &err)
@@ -173,7 +166,7 @@ void QRabbitmqMgr::OnParseTcpMessage(const QByteArray &msg)
         //msg.erase(m_parseBuf.begin(), m_parseBuf.begin() + parsed_bytes);
     }
     catch (const std::exception&e) {
-        m_errMessag = "解析Rmq数据发生错误: " + QString(e.what());
+        m_errMessag = "Parse MqData Error: " + QString(e.what());
         this->OnPrintErrMsg(m_errMessag);
     }
 }
@@ -208,7 +201,7 @@ void QRabbitmqMgr::OnTcpErrHandle(const QString &err)
 bool QRabbitmqMgr::CreateMqChannel()
 {
     if(m_role == MqNone) {
-        m_errMessag = "创建channel失败: MqRole is None";
+        m_errMessag = "Create Channel Failed: MqRole is None";
         return false;
     }
 
@@ -222,7 +215,7 @@ bool QRabbitmqMgr::CreateMqChannel()
         m_channel->onError(std::bind(&QRabbitmqMgr::ChannelErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e) {
-        m_errMessag = "创建channel失败: " + QString(e.what());
+        m_errMessag = "Create Channel Failed: " + QString(e.what());
         this->OnStatusChange(false);
         return false;
     }
@@ -239,7 +232,7 @@ bool QRabbitmqMgr::CloseMqChannel()
         }
     }
     catch (const std::exception &e) {
-        m_errMessag = "关闭channel失败: " + QString(e.what());
+        m_errMessag = "Closing Channel Failed: " + QString(e.what());
         return false;
     }
 
@@ -252,13 +245,13 @@ bool QRabbitmqMgr::CloseMqConnection()
         if (m_connection && m_connection->usable()) {
             bool ret = m_connection->close();
             if (!ret) {
-                m_errMessag = "关闭连接失败";
+                m_errMessag = "Closing Conncetion Failed";
                 return ret;
             }
         }
     }
     catch (const std::exception &e) {
-        m_errMessag = "关闭连接失败" + QString(e.what());
+        m_errMessag = "Closing Conncetion Failed: " + QString(e.what());
         return false;
     }
 
@@ -268,8 +261,13 @@ bool QRabbitmqMgr::CloseMqConnection()
 bool QRabbitmqMgr::CreateMqExchange(const QString &exchangeName, const QString &exchangeType)
 {
     try {
+        if(exchangeName.isEmpty()) {
+            m_errMessag = "ExchangeName is empty.";
+            return false;
+        }
+
         if(!MqExTypeMap.contains(exchangeType)) {
-            m_errMessag = "创建Exchange失败：未知的交换器类型：" + exchangeType;
+            m_errMessag = "Create Exchange Failed, Unknow exType: " + exchangeType;
             return false;
         }
 
@@ -278,7 +276,7 @@ bool QRabbitmqMgr::CreateMqExchange(const QString &exchangeName, const QString &
     }
     catch (const std::exception &e)
     {
-        m_errMessag = "创建Exchange失败: " + QString(e.what());
+        m_errMessag = "Create Exchange Failed: " + QString(e.what());
         return false;
     }
 
@@ -291,7 +289,7 @@ bool QRabbitmqMgr::CreateMqQueue(const QString &queueName)
         m_channel->declareQueue(queueName.toStdString(), AMQP::durable).onError(std::bind(&QRabbitmqMgr::CreatMqQueueErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e) {
-        m_errMessag = "创建Queue失败: " + QString(e.what());
+        m_errMessag = "Create Queue Failed: " + QString(e.what());
         return false;
     }
 
@@ -301,11 +299,16 @@ bool QRabbitmqMgr::CreateMqQueue(const QString &queueName)
 bool QRabbitmqMgr::BindQueue(const QString &queueName, const QString &exchangeName, const QString &routingKey)
 {
     try {
+        if(exchangeName.isEmpty() || queueName.isEmpty()) {
+            m_errMessag = "ExchangeName or QueueName is empty.";
+            return false;
+        }
+
         m_channel->bindQueue(exchangeName.toStdString(), queueName.toStdString(), routingKey.toStdString())
                 .onError(std::bind(&QRabbitmqMgr::BindQueueErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e) {
-        m_errMessag = "绑定Queue失败: " + QString(e.what());
+        m_errMessag = "Bind Queue Failed: " + QString(e.what());
         return false;
     }
 
@@ -318,7 +321,7 @@ bool QRabbitmqMgr::SetQosValue(const uint16_t val)
         m_channel->setQos(val).onError(std::bind(&QRabbitmqMgr::SetQosValueErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e){
-        m_errMessag = "设置Qos值失败：" + QString(e.what());
+        m_errMessag = "Set Qos Failed: " + QString(e.what());
         return false;
     }
     return true;
@@ -327,11 +330,11 @@ bool QRabbitmqMgr::SetQosValue(const uint16_t val)
 bool QRabbitmqMgr::StartConsumeMsg()
 {
     if(!(m_role & MqConsumer)) {
-        m_errMessag = "消费数据失败: MqRole is not Consumer";
+        m_errMessag = "Consume Data Failed: MqRole is not Consumer";
         return false;
     }
     if(m_channel == nullptr) {
-        m_errMessag = "消费数据失败: channel is null";
+        m_errMessag = "Consume Data Failed: channel is null";
         return false;
     }
 
@@ -342,7 +345,7 @@ bool QRabbitmqMgr::StartConsumeMsg()
             .onError(std::bind(&QRabbitmqMgr::ConsumeErrorCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e) {
-        m_errMessag = "消费消息失败: " + QString(e.what());
+        m_errMessag = "Consume Data Failed: " + QString(e.what());
         return false;
     }
     return true;
@@ -357,7 +360,7 @@ bool QRabbitmqMgr::PurgeMsgQueue()
         }
     }
     catch (const std::exception &e) {
-        m_errMessag = "清空队列失败: " + QString(e.what());
+        m_errMessag = "Purge Queue Failed: " + QString(e.what());
         return false;
     }
 
@@ -372,42 +375,42 @@ void QRabbitmqMgr::ChannelOkCb()
 
 void QRabbitmqMgr::ChannelErrCb(const char *msg)
 {
-    m_errMessag = "当前通道发生错误: " + QString(msg);
+    m_errMessag = "Channel Error: " + QString(msg);
     this->OnStatusChange(false);
 }
 
 void QRabbitmqMgr::ChannelCloseErrCb(const char *msg)
 {
-    m_errMessag = "关闭通道发生错误: " + QString(msg);
+    m_errMessag = "Close Channel Failed: " + QString(msg);
 }
 
 void QRabbitmqMgr::CreatMqExchangeErrCb(const char *msg)
 {
-    m_errMessag = "创建Exchange发生错误: " + QString(msg);
+    m_errMessag = "Create Exchange Failed: " + QString(msg);
     this->OnStatusChange(false);
 }
 
 void QRabbitmqMgr::CreatMqQueueErrCb(const char *msg)
 {
-    m_errMessag = "创建Queue发生错误: " + QString(msg);
+    m_errMessag = "Create Queue Failed: " + QString(msg);
     this->OnStatusChange(false);
 }
 
 void QRabbitmqMgr::BindQueueErrCb(const char *msg)
 {
-    m_errMessag = "绑定Queue发生错误: " + QString(msg);
+    m_errMessag = "Bind Queue Failed: " + QString(msg);
     this->OnStatusChange(false);
 }
 
 void QRabbitmqMgr::SetQosValueErrCb(const char *msg)
 {
-    m_errMessag = "设置Qos值发生错误：" + QString(msg);
+    m_errMessag = "Set Qos Failed: " + QString(msg);
     this->OnStatusChange(false);
 }
 
 void QRabbitmqMgr::ConsumeErrorCb(const char *msg)
 {
-    m_errMessag = "消费消息发生错误: " + QString(msg);
+    m_errMessag = "Consume Data Failed: " + QString(msg);
     this->OnStatusChange(false);
 }
 

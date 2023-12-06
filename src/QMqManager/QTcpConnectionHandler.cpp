@@ -43,7 +43,7 @@ void QTcpConnectionHandler::onData(AMQP::Connection *connection, const char *dat
         m_pTcpClient->SendData(msg);
     }
     catch (const std::exception&e) {
-        m_pTcpClient->OnErrMsg("向RabbitMq发送数据失败：" + QString(e.what()));
+        m_pTcpClient->OnErrMsg("To MqServer, Send Data Failed: " + QString(e.what()));
     }
 }
 
@@ -58,14 +58,14 @@ void QTcpConnectionHandler::onError(AMQP::Connection *connection, const char *me
 {
     Q_UNUSED(connection)
 
-    m_pTcpClient->OnErrMsg("RabbitMq发生错误: " + QString(message));
+    m_pTcpClient->OnErrMsg("RabbitMq Failed: " + QString(message));
 }
 
 void QTcpConnectionHandler::onClosed(AMQP::Connection *connection)
 {
     Q_UNUSED(connection)
 
-    m_pTcpClient->OnErrMsg(QString("RabbitMq对端关闭连接"));
+    m_pTcpClient->OnErrMsg(QString("RabbitMq Server Close Connection."));
 }
 
 uint16_t QTcpConnectionHandler::onNegotiate(AMQP::Connection *connection, uint16_t interval)

@@ -38,7 +38,7 @@ bool QTcpClient::SendData(const QByteArray &msg)
         m_pSock->write(msg);
     }
     catch (const std::exception &e) {
-        m_errMessage = "发送数据失败：" + QString(e.what());
+        m_errMessage = "Send Data Failed: " + QString(e.what());
         return false;
     }
 

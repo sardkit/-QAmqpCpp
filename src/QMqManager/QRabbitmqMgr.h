@@ -106,7 +106,7 @@ private:
     bool CloseMqConnection();
     bool CreateMqExchange(const QString &exchangeName, const QString &exchangeType);
     bool CreateMqQueue(const QString &queueName);
-    bool BindQueue(const QString &queueName, const QString &exchangeName, const QString &routingKey);
+    bool BindQueue(const QString &queueName, const QString &exchangeName, const QString &bindingKey);
     bool SetQosValue(const uint16_t val);
 
     // 注册回调函数

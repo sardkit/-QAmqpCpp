@@ -38,8 +38,11 @@ int main(int argc, char *argv[])
             qDebug() << "Error, StartConsumeMsg," << rmq.getErrorMessage();
         }
         // send message
+        for(int i=0; i<10; i++) {
         if(!rmq.PublishMsg("I love you")) {
             qDebug() << "Error, PublishMsg," << rmq.getErrorMessage();
+        }
+        QThread::msleep(100);
         }
     });
 

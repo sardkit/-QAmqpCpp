@@ -81,7 +81,8 @@ bool QRabbitmqMgr::PublishMsg(const QString &msg)
     try {
         //注意: 单通道无法支撑较大的数据流量，多线程发送需要加锁
         QMutexLocker channelLocker(&m_channelMutex);
-        m_channel->publish(m_mqInfo.exchangeName.toStdString(), m_mqInfo.routingKey.toStdString(), msg.toStdString());
+        QString realRouteKey = m_mqInfo.routingKey.isEmpty()? m_mqInfo.queueName : m_mqInfo.routingKey;
+        m_channel->publish(m_mqInfo.exchangeName.toStdString(), realRouteKey.toStdString(), msg.toStdString());
     }
     catch (const std::exception &e) {
         m_errMessag = "Publish Messsage: " + QString(e.what());
@@ -296,7 +297,7 @@ bool QRabbitmqMgr::CreateMqQueue(const QString &queueName)
     return true;
 }
 
-bool QRabbitmqMgr::BindQueue(const QString &queueName, const QString &exchangeName, const QString &routingKey)
+bool QRabbitmqMgr::BindQueue(const QString &queueName, const QString &exchangeName, const QString &bindingKey)
 {
     try {
         if(exchangeName.isEmpty() || queueName.isEmpty()) {
@@ -304,7 +305,8 @@ bool QRabbitmqMgr::BindQueue(const QString &queueName, const QString &exchangeNa
             return false;
         }
 
-        m_channel->bindQueue(exchangeName.toStdString(), queueName.toStdString(), routingKey.toStdString())
+        QString realBindKey = bindingKey.isEmpty()? queueName : bindingKey;
+        m_channel->bindQueue(exchangeName.toStdString(), queueName.toStdString(), realBindKey.toStdString())
                 .onError(std::bind(&QRabbitmqMgr::BindQueueErrCb, this, std::placeholders::_1));
     }
     catch (const std::exception &e) {
